@@ -1,6 +1,6 @@
 # 🛒 Projeto de Automação Web com Python
 
-Automação desenvolvida em Python para realizar coleta automatizada de preços de produtos em e-commerces utilizando Selenium.
+Sistema de automação para monitoramento de preços em e-commerces utilizando Selenium e Python.
 
 O projeto realiza buscas em sites como Amazon e Magazine Luiza, extrai informações relevantes (nome e preço) e gera uma planilha Excel com os dados coletados.
 
