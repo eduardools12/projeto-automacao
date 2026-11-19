@@ -1,108 +1,116 @@
-# 🛒 Projeto de Automação Web com Python
+# 🛒 Automação de Coleta e Comparação de Preços
 
-Sistema de automação para monitoramento de preços em e-commerces utilizando Selenium e Python.
+Automação em Python que pesquisa um produto na **Amazon** e no **Magazine Luiza**, coleta nome, preço, avaliação e link de cada resultado, trata os dados e gera um **relatório em Excel**. Cada execução também é guardada em um **histórico de preços**, então, rodando todo dia, dá para acompanhar como o preço muda.
 
-O projeto realiza buscas em sites como Amazon e Magazine Luiza, extrai informações relevantes (nome e preço) e gera uma planilha Excel com os dados coletados.
+```text
+Selenium (coleta)  →  tratamento (Regex, texto → número)  →  histórico (CSV)  →  relatório (Excel)
+```
 
----
+## O que o relatório traz
 
-## 🚀 Objetivo
+Um único arquivo `.xlsx`, com uma aba para cada análise:
 
-Demonstrar conhecimentos em:
+| Aba | Conteúdo |
+|---|---|
+| **Produtos** | Todos os produtos coletados, do mais barato ao mais caro |
+| **Resumo** | Total coletado, mais barato, mais caro e preço médio por loja |
+| **Faixas de preço** | Cada produto comparado a um valor de referência (opcional: `--valor-base`) |
+| **Filtrados** | Produtos que passaram nos filtros de preço, nota, loja e marca (opcional) |
+| **Histórico** | Menor preço e preço médio por loja em cada execução anterior |
 
-- Automação Web
-- Web Scraping
-- Manipulação de dados
-- Geração de arquivos Excel
-- Uso de bibliotecas externas em Python
+Os preços ficam salvos como número, formatados em reais, então dá para somar, filtrar e montar gráficos direto no Excel.
 
----
+## Como funciona
 
-## 🛠 Tecnologias Utilizadas
+1. Abre o Chrome (o Selenium baixa o ChromeDriver certo sozinho).
+2. Busca o produto em cada loja e espera os cards carregarem (`WebDriverWait`).
+3. Lê os dados de cada card com seletores CSS. Se o seletor do preço ou da avaliação falha, usa um **plano B com Regex** no texto do card.
+4. Converte o preço de texto ("R$ 1.299,90") para número (1299.9) e calcula o resumo.
+5. Acrescenta os preços ao `historico_precos.csv` e gera o relatório.
 
-- Python 3.x
-- Selenium
-- Openpyxl
-- Regex (re)
-- ChromeDriver
+Se uma loja falhar (site fora do ar, demora, mudança de layout), o erro é registrado no log e a automação continua com a outra.
 
----
+## Instalação
 
-## ⚙️ Como Funciona
-
-O script executa as seguintes etapas:
-
-1. Inicializa o navegador automaticamente.
-2. Acessa os sites definidos.
-3. Realiza a busca de um produto específico.
-4. Extrai o nome e o preço do produto.
-5. Armazena os dados em uma planilha `.xlsx`.
-
----
-
-## 📦 Instalação
-
-### 1️⃣ Clone o repositório
-
+```bash
 git clone https://github.com/eduardools12/projeto-automacao.git
 cd projeto-automacao
-2️⃣ (Opcional) Criar ambiente virtual
 python -m venv venv
-Ativar no Windows:
-
-venv\Scripts\activate
-Ativar no Linux/Mac:
-
-source venv/bin/activate
-
-3️⃣ Instalar dependências
+venv\Scripts\activate          # Windows  (Linux/Mac: source venv/bin/activate)
 pip install -r requirements.txt
+```
 
-## 🖥 Pré-requisitos
-Antes de executar o projeto, é necessário:
+Precisa do Python 3.10 ou mais novo e do Google Chrome instalado.
 
-Python 3 instalado
+## Como usar
 
-Google Chrome instalado
+```bash
+# Busca simples nas duas lojas
+python main.py "fone bluetooth"
 
-ChromeDriver compatível com sua versão do Chrome
+# Com faixas de preço e filtros
+python main.py "fone bluetooth" --valor-base 300 --nota-min 4 --marca jbl
 
-Para verificar a versão do Chrome:
+# Só na Magalu, 10 produtos, sem abrir a janela do navegador
+python main.py "air fryer" --lojas magalu --limite 10 --headless
+```
 
-chrome://settings/help
-Download do ChromeDriver:
-https://chromedriver.chromium.org/downloads
+Os arquivos vão para a pasta `relatorios/`. Todas as opções: `python main.py --help`.
 
-## ▶️ Execução
-Para rodar o projeto:
+| Opção | Para que serve |
+|---|---|
+| `--lojas` | Onde buscar: `amazon`, `magalu` (padrão: as duas) |
+| `--limite` | Máximo de produtos por loja (padrão: 20) |
+| `--valor-base` | Valor de referência para a aba de faixas de preço |
+| `--preco-min`, `--nota-min`, `--loja`, `--marca` | Filtros da aba Filtrados |
+| `--saida` | Pasta dos relatórios (padrão: `relatorios`) |
+| `--headless` | Roda sem abrir a janela do navegador |
 
-python auto.py
-Após a execução, será gerado um arquivo Excel com os dados coletados.
+## Rodar todo dia automaticamente (Windows)
 
-## 📂 Estrutura do Projeto
+Como a automação não pede nada durante a execução, ela pode ser agendada. No **Agendador de Tarefas** do Windows, crie uma tarefa diária com:
+
+- **Programa:** caminho do `python.exe` dentro da pasta `venv\Scripts`
+- **Argumentos:** `main.py "fone bluetooth" --headless`
+- **Iniciar em:** a pasta do projeto
+
+A cada dia, a aba **Histórico** do novo relatório mostra a evolução do preço.
+
+## Testes
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest
+```
+
+Os testes cobrem o tratamento dos dados, o histórico, o relatório e o fluxo completo do `main.py` com um navegador falso, ou seja, rodam sem internet.
+
+## Estrutura
+
+```text
 projeto-automacao/
-│
-├── auto.py
+├── main.py                 # linha de comando: lê as opções e conduz o fluxo
+├── comparador/
+│   ├── coleta.py           # Selenium: navegador e leitura dos cards de cada loja
+│   ├── tratamento.py       # conversão de preço e nota, resumo, faixas e filtros
+│   ├── historico.py        # histórico de preços em CSV
+│   └── relatorio.py        # relatório em Excel (openpyxl)
+├── tests/                  # testes automatizados (pytest)
 ├── requirements.txt
-└── README.md
-## 📈 Possíveis Melhorias Futuras
-Modularização do código
+└── requirements-dev.txt
+```
 
-Implementação de tratamento de exceções
+## Limitações
 
-Uso de logging
+- Os seletores dependem do layout dos sites. Se a Amazon ou a Magalu mudarem a página, a coleta daquela loja precisa ser ajustada.
+- Projeto feito para estudo. Use com moderação e respeite os termos de uso de cada site.
 
-Interface de linha de comando (argparse)
+## Possíveis melhorias
 
-Dockerização do projeto
+- Guardar o histórico em um banco de dados (SQLite ou PostgreSQL)
+- Dashboard com a evolução dos preços
+- Alerta por e-mail quando o preço cair abaixo de um valor
 
-Integração com banco de dados
+## Autor
 
-Criação de dashboard para visualização dos dados
-
-## 📄 Licença
-Este projeto está sob a licença MIT.
-
-## 👨‍💻 Autor
-Eduardo Gonçalves
-GitHub: https://github.com/eduardools12
+Eduardo Gonçalves Dutra · [github.com/eduardools12](https://github.com/eduardools12)
